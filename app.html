@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SharpenMath</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#0d1117; color:#e6edf3; }
+  .wrap { max-width:720px; margin:0 auto; padding:36px 20px 60px; }
+  h1 { font-size:1.9rem; margin:0; }
+  .tag { color:#9da7b3; margin:6px 0 18px; }
+  .presets { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:22px; }
+  .presets button { background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:999px; padding:8px 16px; font-size:0.9rem; cursor:pointer; }
+  .presets button:hover { border-color:#3fb950; color:#3fb950; }
+  section { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-bottom:18px; }
+  h2 { font-size:1rem; margin:0 0 14px; color:#e6edf3; }
+  .row { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px; }
+  label { display:block; font-size:0.78rem; color:#9da7b3; margin-bottom:4px; }
+  input, select { background:#0d1117; border:1px solid #30363d; color:#e6edf3; border-radius:6px; padding:8px 10px; font-size:0.95rem; width:130px; }
+  .outs { display:flex; flex-wrap:wrap; gap:12px; }
+  .out { flex:1 1 200px; background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:12px 14px; }
+  .out .val { font-size:1.15rem; font-weight:700; color:#58a6ff; }
+  .out .lab { font-size:0.75rem; color:#9da7b3; margin-top:4px; }
+  .foot { color:#6e7681; font-size:0.8rem; margin-top:10px; }
+  a { color:#58a6ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>&#128298; SharpenMath</h1>
+  <p class="tag">Knife sharpening math - the angle is a spine height, and the spine height you can measure.</p>
+  <div class="presets">
+    <button data-p="chef">Chef's knife</button>
+    <button data-p="pocket">Pocket knife</button>
+    <button data-p="grandpa">Grandpa's old blade</button>
+    <button data-p="razor">Straight razor</button>
+  </div>
+
+  <section>
+    <h2>1. Angle</h2>
+    <div class="row">
+      <div><label>Knife type</label>
+        <select id="ktype"><option value="chef">Chef / kitchen</option><option value="pocket">Pocket / EDC</option><option value="bushcraft">Bushcraft / outdoor</option><option value="razor">Straight razor</option></select></div>
+      <div><label>Heel height (mm)</label><input id="heel" type="number" step="1" min="5" value="45"></div>
+    </div>
+    <div class="outs">
+      <div class="out"><div class="val" id="o-angle"></div><div class="lab">Per-side angle</div></div>
+      <div class="out"><div class="val" id="o-anglenote"></div><div class="lab">Spine lift (measure this)</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Grit plan</h2>
+    <div class="row">
+      <div><label>Edge condition</label>
+        <select id="cond"><option value="touchup">Touch-up (still cuts)</option><option value="dull">Dull (won't push-cut paper)</option><option value="damaged">Chipped / rolled</option></select></div>
+      <div><label>Steel</label>
+        <select id="steel"><option value="soft">Soft (budget stainless)</option><option value="medium">Medium (VG-10, 1095)</option><option value="hard">Hard (SG2, S30V, powder)</option></select></div>
+    </div>
+    <div class="outs">
+      <div class="out"><div class="val" id="o-grit"></div><div class="lab">Start here</div></div>
+      <div class="out"><div class="val" id="o-gritnote"></div><div class="lab">Progression</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Strokes and time</h2>
+    <div class="row">
+      <div><label>Stone type</label>
+        <select id="stone"><option value="soaker">Soaking stone</option><option value="splash">Splash-and-go</option><option value="diamond">Diamond plate</option></select></div>
+    </div>
+    <div class="outs">
+      <div class="out"><div class="val" id="o-strokes"></div><div class="lab">Strokes per side (starting stone)</div></div>
+      <div class="out"><div class="val" id="o-time"></div><div class="lab">Session time</div></div>
+      <div class="out"><div class="val" id="o-stonenote"></div><div class="lab">Stone prep</div></div>
+    </div>
+  </section>
+
+  <p class="foot">Estimates - the burr and the paper test are the authority. <a href="index.html">About</a> &middot; <a href="https://github.com/iLanis-agent/sharpenmath">Code</a></p>
+</div>
+<script src="engine.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (id) { var v = parseFloat($(id).value); return isNaN(v) ? 0 : v; };
+
+  var PRESETS = {
+    chef:    { ktype:'chef',      heel:45, cond:'touchup', steel:'medium', stone:'soaker'  },
+    pocket:  { ktype:'pocket',    heel:25, cond:'dull',    steel:'medium', stone:'splash'  },
+    grandpa: { ktype:'chef',      heel:40, cond:'damaged', steel:'soft',   stone:'soaker'  },
+    razor:   { ktype:'razor',     heel:20, cond:'touchup', steel:'hard',   stone:'splash'  }
+  };
+
+  function compute() {
+    var ang = SharpenMath.angleFor($('ktype').value);
+    $('o-angle').textContent = ang + ' deg/side (' + (2 * ang) + ' included)';
+    var lift = SharpenMath.spineLift(num('heel'), ang);
+    $('o-anglenote').textContent = lift + ' mm spine gap - a ruler or coin stack, not your eyeball';
+
+    var plan = SharpenMath.gritPlan($('cond').value);
+    $('o-grit').textContent = '#' + plan.start;
+    $('o-gritnote').textContent = plan.steps.map(function (g) { return '#' + g; }).join(' -> ') + ' - lower number cuts, higher refines';
+
+    var strokes = SharpenMath.strokesFor($('cond').value, $('steel').value);
+    $('o-strokes').textContent = '~' + strokes + ' per side';
+    $('o-time').textContent = '~' + SharpenMath.sessionMinutes(strokes) + ' min total';
+    $('o-stonenote').textContent = SharpenMath.stonePrep($('stone').value);
+  }
+
+  function apply(p) {
+    ['ktype','heel','cond','steel','stone'].forEach(function (id) { $(id).value = p[id]; });
+    compute();
+  }
+
+  document.querySelectorAll('.presets button').forEach(function (b) {
+    b.addEventListener('click', function () { apply(PRESETS[b.getAttribute('data-p')]); });
+  });
+  document.querySelectorAll('input, select').forEach(function (el) {
+    el.addEventListener('input', compute);
+    el.addEventListener('change', compute);
+  });
+  apply(PRESETS.chef);
+}());
+</script>
+</body>
+</html>
